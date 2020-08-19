@@ -13,18 +13,26 @@ print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('
 seed = 42
 np.random.seed = seed
 
+
+# Loading Training and Testing Data
+
+# Best size for training dataset
 IMG_WIDTH = 128
 IMG_HEIGHT = 128
 IMG_DEPTH = 64
 IMG_CHANNELS = 1
 
-x_train = np.zeros((1800, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
-y_train = np.zeros((1800, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.bool)
+train_num = int(input('How many training images will you use? \n'))
+test_num = int(input('How many testing images will you use? \n'))
 
-x_test = np.zeros((75, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
-y_test = np.zeros((75, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
+x_train = np.zeros((train_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
+y_train = np.zeros((train_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.bool)
+
+x_test = np.zeros((test_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
+y_test = np.zeros((test_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
 
 
+# Using 1800 images from training dataset in cluster -- data pipeline needs to be modified 
 counter = 0
 while counter < 600: 
     x_train[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/no_noise/cropped_img_'+f"{counter:03}" + '.tif')
@@ -57,8 +65,13 @@ while counter < 25:
     counter+=1
 print('Done!')
 
+###########################################################################################################################
+###########################################################################################################################
+
+# Building 3D U-Net
 
 
+# Contraction Path
 inputs = tf.keras.layers.Input((IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS))
 c1 = tf.keras.layers.Conv3D(32, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(inputs)
 c1 = tf.keras.layers.BatchNormalization(axis=-1)(c1)
@@ -83,6 +96,7 @@ c4 = tf.keras.layers.BatchNormalization(axis=-1)(c4)
 c4 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c4)
 c4 = tf.keras.layers.BatchNormalization(axis=-1)(c4)
 
+# Expansive Path
 u6 = tf.keras.layers.Conv3DTranspose(256, (3, 3, 3), strides=(2, 2, 2), padding='same')(c4)
 u6 = tf.keras.layers.concatenate([u6, c3])
 c6 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u6)
@@ -109,19 +123,46 @@ model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 model.summary()
 
+###########################################################################################################################
+###########################################################################################################################
+
+# Callbacks
+
 log_dir = 'logs/fit'
-# filepath = '/clusterfs/fiona/zeeshan/unet_dataset3_test_noise_1250imgs'
-# callback_list = [
-# tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1),
-# tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor = 'val_accuracy', 
-#                                    save_best_only = True)
-# ]
+i = input('Choose a filepath for your Model Checkpoint \n')
+filepath = '{}'.format(i)
+# List of Callbacks -- Add more Callbacks if necessary
+callback_list = [
+tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1),
+tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor = 'val_accuracy', 
+                                   save_best_only = True)
+]
+
+# If you would like to only use the tensorboard_callback, uncomment the following line and comment out the callback_list
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
+
+###########################################################################################################################
+###########################################################################################################################
+
+# Model Training
+
+
+# Change hyperparameters as needed -- these hyperparameters worked best for 3D live-cell membrane data acquired from AO-LLSM
+
+j = input('Choose a filepath to save your final model \n')
 u_net = model.fit(x_train, y_train, batch_size=1, epochs=150, verbose=1, validation_split=0.15, steps_per_epoch=15)
 
-model.save('/clusterfs/fiona/zeeshan/unet_models/unet_noise_1800imgs_150epc_test2(raw).h5')
+model.save('{}'.format(j))
 
+###########################################################################################################################
+###########################################################################################################################
+
+# Plotting Model Performance
+
+# Change figsize and x/y_ticks as needed
+
+k = input('Choose a filepath to save a PNG version of your plot \n')
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(30, 25))
 t = f.suptitle('3D U-Net Performance on Cell Membrane Data', fontsize=24)
 f.subplots_adjust(top=0.85, wspace=0.3)
@@ -143,7 +184,7 @@ ax2.set_ylabel('Loss Value', fontsize=15)
 ax2.set_xlabel('Epoch', fontsize=13)
 ax2.set_title('Loss', fontsize=16)
 l2 = ax2.legend(loc="best")
-plt.savefig('u_net_performance_150_081920.png', format='png')
+plt.savefig('{}'.format(k), format='png')
 plt.show() 
 
 
