@@ -1,4 +1,4 @@
-# LLSM3D_MembraneSegmentation
+# LLSM 3D Membrane Segmentation
 
 ## Abstract
 
