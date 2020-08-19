@@ -1,13 +1,7 @@
 from __future__ import print_function
 import numpy as np
-import matplotlib.pyplot as plt
 import tensorflow as tf
-from ipywidgets import interact, interactive, fixed, interact_manual
-import ipywidgets as widgets
 import tifffile
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from tqdm import tqdm
-import seaborn as sns
 import math
 
 
