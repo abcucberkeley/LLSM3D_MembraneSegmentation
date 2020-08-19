@@ -13,7 +13,7 @@ This code can be modified as needed for user-specific needs. Most users will onl
   1. Mask Binarization (mask_conversion.py)
   2. Image Normalization (img_normalization.py)
   3. Data Augmentation + Preparation (data_augmentation.py)
-  4. Data Preparation (data_preparation.ipynb) -- *This notebook merges all of the above three scripts and can be used through Jupyter. Due to the long run time of      some processes, it is **not recommended to use this notebook**.* 
+  4. Data Preparation (data_preparation.ipynb) -- *This notebook merges all of the above three scripts and can be used through Jupyter. Due to the long runtime of      some processes, it is **not recommended to use this notebook**.* 
 
 ### Model Training:
 
