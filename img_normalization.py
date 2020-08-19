@@ -60,7 +60,7 @@ def scaleContrast(raw_img, rangeIn=(0,800), rangeOut=(0,255)):
     return np.uint8(out)
 
 # Normalizing Raw Image
-i = intensity[153]
+i = intensity[153] # Using 99.95th percentile pixel intensity value for RangeIn
 img_scaled = scaleContrast(raw_image, rangeIn=(0, i), rangeOut=(0,255))
 
 tifffile.imwrite('{}'.format(k), img_scaled)
