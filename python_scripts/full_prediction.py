@@ -1,7 +1,13 @@
 from __future__ import print_function
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
+from ipywidgets import interact, interactive, fixed, interact_manual
+import ipywidgets as widgets
 import tifffile
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from tqdm import tqdm
+import seaborn as sns
 import math
 
 
@@ -21,46 +27,46 @@ def pd_preprocessing(pd):
     label = label[1]
     return label
 
-def full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkw, chunkl, OL):
+def full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkl, chunkw, OL):
 
     a = imgh/chunkh
     a = math.ceil(a)
-    b = imgw/chunkw
+    b = imgl/chunkl
     b = math.ceil(b)
-    c = imgl/chunkl
+    c = imgw/chunkw
     c = math.ceil(c)
     i = 0
-    xmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-    xmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-    ymin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-    ymax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-    zmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-    zmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+    xmin = np.zeros(shape=(a*b*c,))
+    xmax = np.zeros(shape=(a*b*c,))
+    ymin = np.zeros(shape=(a*b*c,))
+    ymax = np.zeros(shape=(a*b*c,))
+    zmin = np.zeros(shape=(a*b*c,))
+    zmax = np.zeros(shape=(a*b*c,))
 
     num_chunks = 0
     for z in range(a): 
-        for y in range(c):
-            for x in range(b):
+        for y in range(b):
+            for x in range(c):
                 xmin[num_chunks] = (((x)*(chunkw-OL)))
-                if i <chunkw: 
+                if i < chunkw: 
                     xmax[num_chunks] = (chunkw*(x+1)-(OL*(x+1)))
                 else:
                     xmax[num_chunks] = imgw
 
                 ymin[num_chunks] = (((y)*(chunkl-OL)))
-                if i <chunkl: 
+                if i < chunkl: 
                     ymax[num_chunks] = (chunkl*(y+1)-(OL*(y+1)))
                 else:
                     ymax[num_chunks] = imgl
 
                 zmin[num_chunks] = (((z)*(chunkh-OL)))
-                if i <chunkh: 
+                if i < chunkh: 
                     zmax[num_chunks] = (chunkh*(z+1)-(OL*(z+1)))
                 else:
                     zmax[num_chunks] = imgh
                 num_chunks+=1
 
-    full_pred = np.zeros((imgh, imgw, imgl), dtype=np.float32)
+    full_pred = np.zeros(shape=(imgh, imgw, imgl))
     print(full_pred.shape)
     while i < (num_chunks): 
         print(i)
@@ -94,8 +100,8 @@ imgh = int(input('Please input the full image array z dimension size \n'))
 imgw = int(input('Please input the full image array y dimension size \n'))
 imgl = int(input('Please input the full image array x dimension size \n'))
 chunkh = int(input('Please input the image subvolume z dimension size \n'))
-chunkw = int(input('Please input the image subvolume y dimension size \n'))
-chunkl = int(input('Please input the image subvolume x dimension size \n'))
+chunkl = int(input('Please input the image subvolume y dimension size \n'))
+chunkw = int(input('Please input the image subvolume x dimension size \n'))
 OL = int(input('Please input your preffered number of overlap pixels \n'))
 save_path = input('Please enter your desired file path for the final full prediction \n')
 full_pred = full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkw, chunkl, OL)
