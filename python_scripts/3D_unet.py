@@ -10,6 +10,11 @@ from tqdm import tqdm
 import tensorflow as tf
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
+j = input('Choose a filepath to save your final model \n')
+
+k = input('Enter the name you would like to use to save your graph PNG \n')
+
+          
 seed = 42
 np.random.seed = seed
 
@@ -34,19 +39,19 @@ y_test = np.zeros((test_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
 
 # Using 1800 images from training dataset in cluster -- data pipeline needs to be modified 
 counter = 0
-while counter < 600: 
+while counter < 667: 
     x_train[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/no_noise/cropped_img_'+f"{counter:03}" + '.tif')
     y_train[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/no_noise/cropped_mask_'+f"{counter:03}" + '.tif')
     counter +=1
 counter = 0
-while counter < 600: 
-    x_train[counter+600] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/noise_level_1/cropped_img_'+f"{counter:03}" + '.tif')
-    y_train[counter+600] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/noise_level_1/cropped_mask_'+f"{counter:03}" + '.tif')
+while counter < 667: 
+    x_train[counter+667] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/noise_level_1/cropped_img_'+f"{counter:03}" + '.tif')
+    y_train[counter+667] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/noise_level_1/cropped_mask_'+f"{counter:03}" + '.tif')
     counter +=1
 counter = 0
-while counter < 600: 
-    x_train[counter+1200] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/noise_level_2/cropped_img_'+f"{counter:03}" + '.tif')
-    y_train[counter+1200] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/noise_level_2/cropped_mask_'+f"{counter:03}" + '.tif')
+while counter < 667: 
+    x_train[counter+1334] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/noise_level_2/cropped_img_'+f"{counter:03}" + '.tif')
+    y_train[counter+1334] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/noise_level_2/cropped_mask_'+f"{counter:03}" + '.tif')
     counter +=1
 counter = 0
 while counter < 25:
@@ -150,7 +155,6 @@ tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor = 'val_accuracy',
 
 # Change hyperparameters as needed -- these hyperparameters worked best for 3D live-cell membrane data acquired from AO-LLSM
 
-j = input('Choose a filepath to save your final model \n')
 u_net = model.fit(x_train, y_train, batch_size=1, epochs=150, verbose=1, validation_split=0.15, steps_per_epoch=15)
 
 model.save('{}'.format(j))
@@ -162,28 +166,33 @@ model.save('{}'.format(j))
 
 # Change figsize and x/y_ticks as needed
 
-k = input('Choose a filepath to save a PNG version of your plot \n')
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(30, 25))
-t = f.suptitle('3D U-Net Performance on Cell Membrane Data', fontsize=24)
-f.subplots_adjust(top=0.85, wspace=0.3)
+
+plt.style.use('seaborn-darkgrid')
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(45,35))
+t = f.suptitle('3D U-Net Performance', fontsize=90, fontweight='bold')
+f.subplots_adjust(top=0.85, wspace=0.4)
 
 max_epoch = len(u_net.history['accuracy'])+1
 epoch_list = list(range(1,max_epoch))
-ax1.plot(epoch_list, u_net.history['accuracy'], label='Train Accuracy')
-ax1.plot(epoch_list, u_net.history['val_accuracy'], label='Validation Accuracy')
+ax1.plot(epoch_list, u_net.history['accuracy'], label='Train Accuracy', color='blue', linewidth=8.5)
+ax1.plot(epoch_list, u_net.history['val_accuracy'], label='Validation Accuracy', color='red', linewidth=8.5)
 # ax1.set_xticks(np.arange(1, max_epoch, 5))
-ax1.set_ylabel('Accuracy Value', fontsize=15)
-ax1.set_xlabel('Epoch', fontsize=13)
-ax1.set_title('Accuracy', fontsize=16)
-l1 = ax1.legend(loc="best")
+ax1.set_ylabel('Accuracy Value', fontsize=40, fontweight='bold')
+ax1.set_xlabel('Epoch', fontsize=40, fontweight='bold')
+ax1.set_title('Accuracy', fontsize=70, fontweight='bold')
+plt.setp(ax1.get_xticklabels(), fontsize=28, fontweight="bold", horizontalalignment="left")
+plt.setp(ax1.get_yticklabels(), fontsize=28, fontweight="bold", horizontalalignment="right")
+l1 = ax1.legend(loc='best', prop={'size': 35})
 
-ax2.plot(epoch_list, u_net.history['loss'], label='Train Loss')
-ax2.plot(epoch_list, u_net.history['val_loss'], label='Validation Loss')
+ax2.plot(epoch_list, u_net.history['loss'], label='Train Loss', color='blue', linewidth=8.5)
+ax2.plot(epoch_list, u_net.history['val_loss'], label='Validation Loss', color='red', linewidth=8.5)
 # ax2.set_xticks(np.arange(1, max_epoch, 5))
-ax2.set_ylabel('Loss Value', fontsize=15)
-ax2.set_xlabel('Epoch', fontsize=13)
-ax2.set_title('Loss', fontsize=16)
-l2 = ax2.legend(loc="best")
+ax2.set_ylabel('Loss Value', fontsize=40, fontweight='bold')
+ax2.set_xlabel('Epoch', fontsize=40, fontweight='bold')
+ax2.set_title('Loss', fontsize=70, fontweight='bold')
+plt.setp(ax2.get_xticklabels(), fontsize=28, fontweight="bold", horizontalalignment="left")
+plt.setp(ax2.get_yticklabels(), fontsize=28, fontweight="bold", horizontalalignment="right")
+l2 = ax2.legend(loc='best', prop={'size': 35})
 plt.savefig('{}'.format(k), format='png')
 plt.show() 
 
