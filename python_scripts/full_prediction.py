@@ -52,137 +52,68 @@ def full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkl, chunkw, OL):
                 for x in range(c):
                     xmin[num_chunks] = (((x)*(chunkw-OL)))
                     if x < chunkw: 
-                        xmax[num_chunks] = (chunkw*(x+1)-(OL*(x+1)))
+                        xmax[num_chunks] = (chunkw*(x+1)-(OL*(x)))
                     else:
                         xmax[num_chunks] = imgw
 
                     ymin[num_chunks] = (((y)*(chunkl-OL)))
                     if y < chunkl: 
-                        ymax[num_chunks] = (chunkl*(y+1)-(OL*(y+1)))
+                        ymax[num_chunks] = (chunkl*(y+1)-(OL*(y)))
                     else:
                         ymax[num_chunks] = imgl
 
                     zmin[num_chunks] = (((z)*(chunkh-OL)))
                     if z < chunkh: 
-                        zmax[num_chunks] = (chunkh*(z+1)-(OL*(z+1)))
+                        zmax[num_chunks] = (chunkh*(z+1)-(OL*(z)))
                     else:
                         zmax[num_chunks] = imgh
                     num_chunks+=1
 
         halfOL = int(OL/2)
-        full_pred = np.zeros(shape=(imgh, imgw, imgl))
+        full_pred = np.zeros(shape=(imgh, imgl, imgw))
         print(full_pred.shape)
         while i < (num_chunks): 
             print(i)
             print('Zmin:', zmin[i], "Zmax:", zmax[i], 'Ymin:', ymin[i], "Ymax:", ymax[i],'Xmin:', xmin[i], "Xmax:", xmax[i])
-            cropped_img = img[zmin[i]:zmax[i], ymin[i]:ymax[i], xmin[i]:xmax[i]]
+            cropped_img = img[zmin[i]:zmax[i], ymin[i]:ymax[i], xmin[i]:xmax[i]] 
             print(cropped_img.shape)
-            if (cropped_img.shape == (chunkh, chunkl, chunkw)):
+            if (cropped_img.shape ==(chunkh, chunkl, chunkw)):
                 pd = model.predict(cropped_img.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
                 #Postprocess pd
-                cropped_pred = pd_preprocessing(pd)
-                if (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]!=0 and zmin[i]==0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]!=0 and zmin[i]!=0 and ((zmin[i]+chunkh-OL)-(zmin[i]-halfOL)!=zdiff)):
-                    full_pred[zmin[i]:zmax[i], ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-              
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]==0 and zmin[i]!=0 and ((zmin[i]+chunkh-OL)-(zmin[i]-halfOL)==zdiff)):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]==0 and zmin[i]!=0 and ((zmin[i]+chunkh-OL)-(zmin[i]-halfOL)!=zdiff)):
-                    full_pred[zmin[i]:zmax[i], ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                
-                elif (xmin[i]==0 and ymin[i]==0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (xmin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (ymin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
-                elif (xmin[i]==0 and ymin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (xmin[i]==0 and ymin[i]!=0 and zmin[i]!=0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]:xmin[i]+chunkw-OL] = cropped_pred
-                elif (ymin[i]==0 and xmin[i]!=0 and zmin[i]!=0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
-                elif (zmin[i]==0 and xmin[i]!=0 and ymin[i]!=0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
-                elif (xmax[i]==imgw and ymax[i]==imgl):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:imgl, xmin[i]+halfOL:imgw] = cropped_pred
-                elif (xmax[i]==imgw and zmax[i]==imgh):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:imgw] = cropped_pred
-                elif (ymax[i]==imgl and zmax[i]==imgh):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:imgl, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
-                elif (xmax[i]==imgw and ymax[i]==imgl and zmax[i]==imgh):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:imgl, xmin[i]+halfOL:imgw] = cropped_pred
-                elif (xmax[i]==imgw and ymax[i]!=imgl and zmax[i]!=imgh):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:imgw] = cropped_pred
-                elif (ymax[i]==imgl and xmax[i]!=imgw and zmax[i]!=imgh):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:imgl, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
-                elif (zmax[i]==imgh and ymax[i]!=imgl and xmax[i]!=imgw):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
-                else:
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = cropped_pred
+                cropped_pred = pd_preprocessing(pd) 
+                full_pred[zmin[i]+halfOL:zmax[i]-halfOL, ymin[i]+halfOL:ymax[i]-halfOL, xmin[i]+halfOL:xmax[i]-halfOL] = cropped_pred[0+halfOL:chunkh-halfOL, 0+halfOL:chunkl-halfOL, 0+halfOL:chunkw-halfOL]
             else:
                 print('This crop was too small.')
-                print(cropped_img.shape)
                 new_array = np.zeros(shape=(chunkh,chunkl,chunkw))
                 arr = np.zeros(shape=cropped_img.shape)
-                xdiff = cropped_img.shape[2]
-                ydiff = cropped_img.shape[1]
-                zdiff = cropped_img.shape[0]
+                xdiff = cropped_img.shape[2] 
+                ydiff = cropped_img.shape[1] 
+                zdiff = cropped_img.shape[0] 
                 print('Zdiff', zdiff, "Ydiff", ydiff, 'Xdiff', xdiff)
                 new_array[0:zdiff, 0:ydiff, 0:xdiff] = cropped_img
                 pd = model.predict(new_array.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
                 cropped_pred = pd_preprocessing(pd)
                 arr = cropped_pred[0:zdiff, 0:ydiff, 0:xdiff]
-                
-                if (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]!=0 and zmin[i]==0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]!=0 and zmin[i]!=0 and ((zmin[i]+chunkh-OL)-(zmin[i]-halfOL)!=zdiff)):
-                    full_pred[zmin[i]:zmax[i], ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-              
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]==0 and zmin[i]!=0 and ((zmin[i]+chunkh-OL)-(zmin[i]-halfOL)==zdiff)):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (((ymin[i]+chunkl-OL)-(ymin[i]-halfOL)!=ydiff) and xmin[i]==0 and zmin[i]!=0 and ((zmin[i]+chunkh-OL)-(zmin[i]-halfOL)!=zdiff)):
-                    full_pred[zmin[i]:zmax[i], ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                
-                elif (xmin[i]==0 and ymin[i]==0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (xmin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (ymin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
-                elif (xmin[i]==0 and ymin[i]==0 and zmin[i]==0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (xmin[i]==0 and ymin[i]!=0 and zmin[i]!=0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]:xmin[i]+chunkw-OL] = arr
-                elif (ymin[i]==0 and xmin[i]!=0 and zmin[i]!=0):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]:ymin[i]+chunkl-OL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
-                elif (zmin[i]==0 and xmin[i]!=0 and ymin[i]!=0):
-                    full_pred[zmin[i]:zmin[i]+chunkh-OL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
-                elif (xmax[i]==imgw and ymax[i]==imgl):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:imgl, xmin[i]+halfOL:imgw] = arr
-                elif (xmax[i]==imgw and zmax[i]==imgh):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:imgw] = arr
-                elif (ymax[i]==imgl and zmax[i]==imgh):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:imgl, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
-                elif (xmax[i]==imgw and ymax[i]==imgl and zmax[i]==imgh):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:imgl, xmin[i]+halfOL:imgw] = arr
-                elif (xmax[i]==imgw and ymax[i]!=imgl and zmax[i]!=imgh):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:imgw] = arr
-                elif (ymax[i]==imgl and xmax[i]!=imgw and zmax[i]!=imgh):
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:imgl, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
-                elif (zmax[i]==imgh and ymax[i]!=imgl and xmax[i]!=imgw):
-                    full_pred[zmin[i]+halfOL:imgh, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
+                if zdiff>halfOL:
+                    zidx = list(range(halfOL, zdiff-halfOL+1))
                 else:
-                    full_pred[zmin[i]+halfOL:zmin[i]+chunkh-halfOL, ymin[i]+halfOL:ymin[i]+chunkl-halfOL, xmin[i]+halfOL:xmin[i]+chunkw-halfOL] = arr
-            i += 1
-
+                    zidx = list(range(0, zdiff+1))
+                
+                if ydiff>halfOL:
+                    yidx = list(range(halfOL, ydiff-halfOL+1))
+                else:
+                    yidx = list(range(0, ydiff+1))         
+                
+                if xdiff>halfOL:
+                    xidx = list(range(halfOL, xdiff-halfOL+1))
+                else:
+                    xidx = list(range(0, xdiff+1))
+                
+                full_pred[zmin[i]:zmin[i]+len(zidx)-1, ymin[i]:ymin[i]+len(yidx)-1, xmin[i]:xmin[i]+len(xidx)-1] = arr[zidx[0]:zidx[len(zidx)-1], yidx[0]:yidx[len(yidx)-1], xidx[0]:xidx[len(xidx)-1]]
+                
+            i+=1
+                
         return np.float32(full_pred)
-
 
 imgh = int(input('Please input the full image array z dimension size \n'))
 imgw = int(input('Please input the full image array y dimension size \n'))
