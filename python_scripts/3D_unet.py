@@ -164,8 +164,7 @@ model.save('{}'.format(j))
 
 # Plotting Model Performance
 
-# Change figsize and x/y_ticks as needed
-
+# Change figsize, x/y_ticks, and overall aesthetics as needed
 
 plt.style.use('seaborn-darkgrid')
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(45,35))
@@ -193,7 +192,7 @@ ax2.set_title('Loss', fontsize=70, fontweight='bold')
 plt.setp(ax2.get_xticklabels(), fontsize=28, fontweight="bold", horizontalalignment="left")
 plt.setp(ax2.get_yticklabels(), fontsize=28, fontweight="bold", horizontalalignment="right")
 l2 = ax2.legend(loc='best', prop={'size': 35})
-plt.savefig('{}'.format(k), format='png')
+plt.savefig('{}'.format(k), format='png', dpi=500)
 plt.show() 
 
 
