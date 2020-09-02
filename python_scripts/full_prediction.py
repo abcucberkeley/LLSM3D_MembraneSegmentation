@@ -27,7 +27,7 @@ def pd_preprocessing(pd):
     label = label[1]
     return label
 
-def full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkl, chunkw, OL):
+def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
 
     if OL%2 !=0:
         print('ERROR: Please enter an even OL value for the program to run.')
@@ -116,14 +116,14 @@ def full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkl, chunkw, OL):
         return np.float32(full_pred)
 
 imgh = int(input('Please input the full image array z dimension size \n'))
-imgw = int(input('Please input the full image array y dimension size \n'))
-imgl = int(input('Please input the full image array x dimension size \n'))
+imgl = int(input('Please input the full image array y dimension size \n'))
+imgw = int(input('Please input the full image array x dimension size \n'))
 chunkh = int(input('Please input the image subvolume z dimension size \n'))
 chunkl = int(input('Please input the image subvolume y dimension size \n'))
 chunkw = int(input('Please input the image subvolume x dimension size \n'))
 OL = int(input('Please input your preffered number of overlap pixels \n'))
 save_path = input('Please enter your desired file path for the final full prediction \n')
-full_pred = full_volume_prediction(img, imgh, imgw, imgl, chunkh, chunkw, chunkl, OL)
+full_pred = full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkw, chunkl, OL)
 tifffile.imwrite('{}'.format(save_path), full_pred)
 
 
