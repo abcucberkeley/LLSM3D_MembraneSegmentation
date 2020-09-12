@@ -28,7 +28,7 @@ This code can be modified as needed for user-specific needs. Most users will onl
 
 ## Project Results
 
-Please refer to the this [project poster](file:///Users/zeeshanpatel/Desktop/2020_U-Net3D_CellMembranePoster_final_reduced.pdf) project poster for more information regarding our experimentation methods and results. If you have any inquiries regarding our project or code, feel free to contact Zeeshan Patel at zeeshanp@berkeley.edu. 
+Please refer to the this <a href="/Users/zeeshanpatel/Desktop/2020_U-Net3D_CellMembranePoster_final_reduced.pdf" download>project poster</a> for more information regarding our experimentation methods and results. If you have any inquiries regarding our project or code, feel free to contact Zeeshan Patel at zeeshanp@berkeley.edu. 
   
 
 ## References 
