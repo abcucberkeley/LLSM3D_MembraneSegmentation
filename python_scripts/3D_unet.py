@@ -122,11 +122,12 @@ c8 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer
 c8 = tf.keras.layers.BatchNormalization(axis=-1)(c8)
 c8 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c8)
 c8 = tf.keras.layers.BatchNormalization(axis=-1)(c8)
+outputs = tf.keras.layers.Conv3D(1, (1, 1, 1), activation='sigmoid')(c8)
 
-outputs = tf.keras.layers.Conv3D(3, (1, 1, 1), activation='sigmoid')(c8)
 model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
-model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer='adam', loss=tf.keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
 model.summary()
+
 
 ###########################################################################################################################
 ###########################################################################################################################
