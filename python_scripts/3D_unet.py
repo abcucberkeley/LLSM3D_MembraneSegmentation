@@ -1,199 +1,267 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
+import json
 import os
+import sys
 import numpy as np 
 import tifffile
-import tensorflow as tf
 import random
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-
+from tensorflow.keras import backend as K
 import tensorflow as tf
+import tensorflow_addons as tfa
+import sklearn
+from sklearn import model_selection
+from sklearn.model_selection import train_test_split
+import math
+import datetime
+
+begin_time = datetime.datetime.now()
+
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
-j = input('Choose a filepath to save your final model \n')
-
-k = input('Enter the name you would like to use to save your graph PNG \n')
-
-          
+# Pre-defined parameters 
 seed = 42
 np.random.seed = seed
 
-
-# Loading Training and Testing Data
-
-# Best size for training dataset
-IMG_WIDTH = 128
-IMG_HEIGHT = 128
-IMG_DEPTH = 64
+IMG_WIDTH = 112
+IMG_HEIGHT = 112
+IMG_DEPTH = 32
 IMG_CHANNELS = 1
 
-train_num = int(input('How many training images will you use? \n'))
-test_num = int(input('How many testing images will you use? \n'))
 
-x_train = np.zeros((train_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
-y_train = np.zeros((train_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.bool)
+#####################################################################################################################
+#####################################################################################################################
 
-x_test = np.zeros((test_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
-y_test = np.zeros((test_num, IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
+# Data Augmentation Functions
+
+def crop_img_mask(img, mask, chunkh, chunkw, chunkl, imgh, imgw, imgl):
+        start_h = random.randint(0, imgh-chunkh)
+        start_w = random.randint(0, imgw-chunkw)
+        start_l = random.randint(0, imgl-chunkl)
+        
+        cropped_img = img[start_h:start_h+chunkh, start_w:start_w+chunkw, start_l:start_l+chunkl]
+        cropped_mask = mask[start_h:start_h+chunkh, start_w:start_w+chunkw, start_l:start_l+chunkl]
+        
+        if (cropped_mask.shape == (chunkh, chunkw, chunkl)) & (cropped_img.shape == (chunkh, chunkw, chunkl)):                                       
+            return cropped_img , cropped_mask
+        
+def rotation(cropped_img, cropped_mask):
+    cropped_img = tfa.image.rotate(cropped_img, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
+    cropped_mask = tfa.image.rotate(cropped_mask, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
+    return cropped_img, cropped_mask
+
+def flip_img(cropped_img, cropped_mask): 
+    cropped_img = tf.image.flip_left_right(cropped_img)
+    cropped_mask = tf.image.flip_left_right(cropped_mask)
+    cropped_img = tf.image.flip_up_down(cropped_img)
+    cropped_mask = tf.image.flip_up_down(cropped_mask) 
+    return cropped_img, cropped_mask
+
+def random_augmentation(img, mask, chunkh, chunkw, chunkl, imgh, imgw, imgl):
+    cropped_img, cropped_mask = crop_img_mask(img, mask, chunkh, chunkw, chunkl, imgh, imgw, imgl)
+
+    random_number = random.randint(1,4) 
+    if (cropped_mask.shape == (chunkh, chunkw, chunkl)) & (cropped_img.shape == (chunkh, chunkw, chunkl)):
+        if random_number == 1:
+            cropped_mask = np.array(cropped_mask, dtype=np.bool)
+            return cropped_img, cropped_mask
+        elif random_number == 2:
+            cropped_img = tfa.image.rotate(cropped_img, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
+            cropped_mask = tfa.image.rotate(cropped_mask, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
+            cropped_img = np.array(cropped_img)
+            cropped_mask = np.array(cropped_mask, np.bool)
+            return cropped_img, cropped_mask
+        elif random_number == 3:
+            cropped_img = tf.image.flip_left_right(cropped_img)
+            cropped_mask = tf.image.flip_left_right(cropped_mask)
+            cropped_img = tf.image.flip_up_down(cropped_img)
+            cropped_mask = tf.image.flip_up_down(cropped_mask) 
+            cropped_img = np.array(cropped_img)
+            cropped_mask = np.array(cropped_mask, np.bool)
+            return cropped_img, cropped_mask
+        else:
+            cropped_img = tfa.image.rotate(cropped_img, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
+            cropped_mask = tfa.image.rotate(cropped_mask, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
+            cropped_img = tf.image.flip_left_right(cropped_img)
+            cropped_mask = tf.image.flip_left_right(cropped_mask)
+            cropped_img = tf.image.flip_up_down(cropped_img)
+            cropped_mask = tf.image.flip_up_down(cropped_mask) 
+            cropped_img = np.array(cropped_img)
+            cropped_mask = np.array(cropped_mask, np.bool)
+            return cropped_img, cropped_mask
+        
+
+# Data Loading
+
+num_images = int(input("Enter the number of input images: "))
+
+imgs = []
+masks = []
+
+for i in range(num_images):
+    img_path = input("Enter the path for bioimage {}: ".format(i))
+    img = tifffile.imread(img_path)
+    img = img[1::2, 1::2, 1::2]
+    mask_path = input("Enter the path for mask {}: ".format(i))
+    mask = tifffile.imread(mask_path)
+    mask.dtype = np.uint8
+    mask = mask[1::2, 1::2, 1::2]
+    imgs.append(img)
+    masks.append(mask)
+
+x = []
+y = []
+count = 0
+while count < 700:
+    for i in range(len(imgs)):
+        cropped_img, cropped_mask = random_augmentation(img[i], mask[i], 32, 112, 112, img[i].shape[0], img[i].shape[1], img[i].shape[2])
+        x.append(cropped_img)
+        y.append(cropped_mask)
+    count+=1
+
+x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=0.2)
+x_train = np.array(x_train, dtype=np.uint8)
+y_train = np.array(y_train, dtype=np.bool)
+x_test = np.array(x_test, dtype=np.uint8)
+y_test = np.array(y_test, dtype=np.bool)
+
+print('Data Loaded successfully!') 
 
 
-# Using 1800 images from training dataset in cluster -- data pipeline needs to be modified 
-counter = 0
-while counter < 667: 
-    x_train[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/no_noise/cropped_img_'+f"{counter:03}" + '.tif')
-    y_train[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/no_noise/cropped_mask_'+f"{counter:03}" + '.tif')
-    counter +=1
-counter = 0
-while counter < 667: 
-    x_train[counter+667] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/noise_level_1/cropped_img_'+f"{counter:03}" + '.tif')
-    y_train[counter+667] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/noise_level_1/cropped_mask_'+f"{counter:03}" + '.tif')
-    counter +=1
-counter = 0
-while counter < 667: 
-    x_train[counter+1334] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_imgs/raw_data/noise_level_2/cropped_img_'+f"{counter:03}" + '.tif')
-    y_train[counter+1334] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_masks/raw_data/noise_level_2/cropped_mask_'+f"{counter:03}" + '.tif')
-    counter +=1
-counter = 0
-while counter < 25:
-    x_test[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_test_imgs/raw_data/no_noise/cropped_img_' + f"{counter:03}" + '.tif')
-    y_test[counter] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_test_masks/raw_data/no_noise/cropped_mask_' + f"{counter:03}" + '.tif')
-    counter+=1
-counter = 0
-while counter < 25:
-    x_test[counter+25] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_test_imgs/raw_data/noise_level_1/cropped_img_' + f"{counter:03}" + '.tif')
-    y_test[counter+25] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_test_masks/raw_data/noise_level_1/cropped_mask_' + f"{counter:03}" + '.tif')
-    counter+=1
-counter = 0
-while counter < 25:
-    x_test[counter+50] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_test_imgs/raw_data/noise_level_2/cropped_img_' + f"{counter:03}" + '.tif')
-    y_test[counter+50] = tifffile.imread('/clusterfs/fiona/zeeshan/cropped_test_masks/raw_data/noise_level_2/cropped_mask_' + f"{counter:03}" + '.tif')
-    counter+=1
-print('Done!')
+#####################################################################################################################
+#####################################################################################################################
 
-###########################################################################################################################
-###########################################################################################################################
+# 3D U-Net Model Functions
 
-# Building 3D U-Net
+model_save_location = input("Enter the file path for the model h5 file: ") # Ex: /my/machine/.../model.h5
+
+def dice_coef(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = K.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+def dice_loss(y_true, y_pred):
+    smooth = 1.
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = y_true_f * y_pred_f
+    score = (2. * K.sum(intersection) + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+    return 1. - score
+
+def bce_dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    return tf.keras.losses.binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
 
 
-# Contraction Path
-inputs = tf.keras.layers.Input((IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS))
-c1 = tf.keras.layers.Conv3D(32, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(inputs)
-c1 = tf.keras.layers.BatchNormalization(axis=-1)(c1)
-c1 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c1)
-c1 = tf.keras.layers.BatchNormalization(axis=-1)(c1)
-p1 = tf.keras.layers.MaxPooling3D((2, 2, 2))(c1)
+# Distributed 3D U-Net Architecture 
 
-c2 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p1)
-c2 = tf.keras.layers.BatchNormalization(axis=-1)(c2)
-c2 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c2)
-c2 = tf.keras.layers.BatchNormalization(axis=-1)(c2)
-p2 = tf.keras.layers.MaxPooling3D((2, 2, 2))(c2)
+strategy = tf.distribute.MirroredStrategy()
+with strategy.scope():
+    inputs = tf.keras.layers.Input((IMG_DEPTH, IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS))
+    s = tf.keras.layers.Lambda(lambda x: x / 255)(inputs)
+    c1 = tf.keras.layers.Conv3D(32, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(s)
+    c1 = tf.keras.layers.BatchNormalization(axis=-1)(c1)
+    c1 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c1)
+    c1 = tf.keras.layers.BatchNormalization(axis=-1)(c1)
+    p1 = tf.keras.layers.MaxPooling3D((2, 2, 2))(c1)
 
-c3 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p2)
-c3 = tf.keras.layers.BatchNormalization(axis=-1)(c3)
-c3 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c3)
-c3 = tf.keras.layers.BatchNormalization(axis=-1)(c3)
-p3 = tf.keras.layers.MaxPooling3D((2, 2, 2))(c3)
+    c2 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(p1)
+    c2 = tf.keras.layers.BatchNormalization(axis=-1)(c2)
+    c2 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c2)
+    c2 = tf.keras.layers.BatchNormalization(axis=-1)(c2)
+    p2 = tf.keras.layers.MaxPooling3D((2, 2, 2))(c2)
 
-c4 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(p3)
-c4 = tf.keras.layers.BatchNormalization(axis=-1)(c4)
-c4 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c4)
-c4 = tf.keras.layers.BatchNormalization(axis=-1)(c4)
+    c3 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(p2)
+    c3 = tf.keras.layers.BatchNormalization(axis=-1)(c3)
+    c3 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c3)
+    c3 = tf.keras.layers.BatchNormalization(axis=-1)(c3)
+    p3 = tf.keras.layers.MaxPooling3D((2, 2, 2))(c3)
 
-# Expansive Path
-u6 = tf.keras.layers.Conv3DTranspose(256, (3, 3, 3), strides=(2, 2, 2), padding='same')(c4)
-u6 = tf.keras.layers.concatenate([u6, c3])
-c6 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u6)
-c6 = tf.keras.layers.BatchNormalization(axis=-1)(c6)
-c6 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c6)
-c6 = tf.keras.layers.BatchNormalization(axis=-1)(c6)
+    c4 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(p3)
+    c4 = tf.keras.layers.BatchNormalization(axis=-1)(c4)
+    c4 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c4)
+    c4 = tf.keras.layers.BatchNormalization(axis=-1)(c4)
 
-u7 = tf.keras.layers.Conv3DTranspose(256, (3, 3, 3), strides=(2, 2, 2), padding='same')(c6)
-u7 = tf.keras.layers.concatenate([u7, c2])
-c7 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u7)
-c7 = tf.keras.layers.BatchNormalization(axis=-1)(c7)
-c7 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c7)
-c7 = tf.keras.layers.BatchNormalization(axis=-1)(c7)
+    u6 = tf.keras.layers.Conv3DTranspose(256, (3, 3, 3), strides=(2, 2, 2), padding='same', kernel_regularizer='l2')(c4)
+    u6 = tf.keras.layers.concatenate([u6, c3])
+    c6 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(u6)
+    c6 = tf.keras.layers.BatchNormalization(axis=-1)(c6)
+    c6 = tf.keras.layers.Conv3D(256, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c6)
+    c6 = tf.keras.layers.BatchNormalization(axis=-1)(c6)
 
-u8 = tf.keras.layers.Conv3DTranspose(64, (3, 3, 3), strides=(2, 2, 2), padding='same')(c7)
-u8 = tf.keras.layers.concatenate([u8, c1])
-c8 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(u8)
-c8 = tf.keras.layers.BatchNormalization(axis=-1)(c8)
-c8 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same')(c8)
-c8 = tf.keras.layers.BatchNormalization(axis=-1)(c8)
-outputs = tf.keras.layers.Conv3D(1, (1, 1, 1), activation='sigmoid')(c8)
+    u7 = tf.keras.layers.Conv3DTranspose(256, (3, 3, 3), strides=(2, 2, 2), padding='same', kernel_regularizer='l2')(c6)
+    u7 = tf.keras.layers.concatenate([u7, c2])
+    c7 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(u7)
+    c7 = tf.keras.layers.BatchNormalization(axis=-1)(c7)
+    c7 = tf.keras.layers.Conv3D(128, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c7)
+    c7 = tf.keras.layers.BatchNormalization(axis=-1)(c7)
 
-model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
-model.compile(optimizer='adam', loss=tf.keras.losses.BinaryCrossentropy(), metrics=['accuracy'])
+    u8 = tf.keras.layers.Conv3DTranspose(64, (3, 3, 3), strides=(2, 2, 2), padding='same', kernel_regularizer='l2')(c7)
+    u8 = tf.keras.layers.concatenate([u8, c1])
+    c8 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(u8)
+    c8 = tf.keras.layers.BatchNormalization(axis=-1)(c8)
+    c8 = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', kernel_initializer='he_normal', padding='same', kernel_regularizer='l2')(c8)
+    c8 = tf.keras.layers.BatchNormalization(axis=-1)(c8)
+    outputs = tf.keras.layers.Conv3D(1, (1, 1, 1), activation='sigmoid', kernel_regularizer='l2')(c8)
+    opt = tf.keras.optimizers.Adam(learning_rate=0.0002, beta_1=0.9, beta_2=0.999)
+
+    model = tf.keras.Model(inputs=[inputs], outputs=[outputs])
+    model.compile(optimizer=opt, loss=bce_dice_loss, metrics=['accuracy'])
+
 model.summary()
 
+# You can uncomment the below lines if you are interested in using TensorBoard for more advanced analytics on your model. 
 
-###########################################################################################################################
-###########################################################################################################################
-
-# Callbacks
-
-log_dir = 'logs/fit'
-i = input('Choose a filepath for your Model Checkpoint \n')
-filepath = '{}'.format(i)
-# List of Callbacks -- Add more Callbacks if necessary
-callback_list = [
-tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1),
-tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor = 'val_accuracy', 
-                                   save_best_only = True)
-]
-
-# If you would like to only use the tensorboard_callback, uncomment the following line and comment out the callback_list
+# log_dir = 'logs/fit'
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
+train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+batch_size = 8 # This size was optimal for a trainign with over 6,600 images on three NVIDIA Titan V GPUs. You can change this based on your machine's capabilities.
+train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
+test_dataset = test_dataset.batch(batch_size, drop_remainder=True)
+u_net = model.fit(train_dataset, epochs=400, verbose=1, validation_data=test_dataset)
 
-###########################################################################################################################
-###########################################################################################################################
+model.save(model_save_location)
 
-# Model Training
+#####################################################################################################################
+#####################################################################################################################
 
-
-# Change hyperparameters as needed -- these hyperparameters worked best for 3D live-cell membrane data acquired from AO-LLSM
-
-u_net = model.fit(x_train, y_train, batch_size=1, epochs=150, verbose=1, validation_split=0.15, steps_per_epoch=15)
-
-model.save('{}'.format(j))
-
-###########################################################################################################################
-###########################################################################################################################
-
-# Plotting Model Performance
-
-# Change figsize, x/y_ticks, and overall aesthetics as needed
-
+# Training/Validation Accuracy + Loss Plot
 plt.style.use('seaborn-darkgrid')
-f, (ax1, ax2) = plt.subplots(1, 2, figsize=(45,35))
+f, (ax1, ax2) = plt.subplots(1, 2, figsize=(50,40))
 t = f.suptitle('3D U-Net Performance', fontsize=90, fontweight='bold')
 f.subplots_adjust(top=0.85, wspace=0.4)
 
 max_epoch = len(u_net.history['accuracy'])+1
 epoch_list = list(range(1,max_epoch))
-ax1.plot(epoch_list, u_net.history['accuracy'], label='Train Accuracy', color='blue', linewidth=8.5)
-ax1.plot(epoch_list, u_net.history['val_accuracy'], label='Validation Accuracy', color='red', linewidth=8.5)
-# ax1.set_xticks(np.arange(1, max_epoch, 5))
-ax1.set_ylabel('Accuracy Value', fontsize=40, fontweight='bold')
-ax1.set_xlabel('Epoch', fontsize=40, fontweight='bold')
+ax1.plot(epoch_list, u_net.history['accuracy'], label='Train Accuracy', color='blue', linewidth=6.5)
+ax1.plot(epoch_list, u_net.history['val_accuracy'], label='Validation Accuracy', color='red', linewidth=6.5)
+ax1.set_ylabel('Accuracy Value', fontsize=50, fontweight='bold')
+ax1.set_xlabel('Epoch', fontsize=50, fontweight='bold')
 ax1.set_title('Accuracy', fontsize=70, fontweight='bold')
-plt.setp(ax1.get_xticklabels(), fontsize=28, fontweight="bold", horizontalalignment="left")
-plt.setp(ax1.get_yticklabels(), fontsize=28, fontweight="bold", horizontalalignment="right")
+# ax1.set_yscale('log')
+plt.setp(ax1.get_xticklabels(), fontsize=38, fontweight="bold", horizontalalignment="left")
+plt.setp(ax1.get_yticklabels(), fontsize=38, fontweight="bold", horizontalalignment="right")
 l1 = ax1.legend(loc='best', prop={'size': 35})
 
-ax2.plot(epoch_list, u_net.history['loss'], label='Train Loss', color='blue', linewidth=8.5)
-ax2.plot(epoch_list, u_net.history['val_loss'], label='Validation Loss', color='red', linewidth=8.5)
-# ax2.set_xticks(np.arange(1, max_epoch, 5))
-ax2.set_ylabel('Loss Value', fontsize=40, fontweight='bold')
-ax2.set_xlabel('Epoch', fontsize=40, fontweight='bold')
+ax2.plot(epoch_list, u_net.history['loss'], label='Train Loss', color='blue', linewidth=6.5)
+ax2.plot(epoch_list, u_net.history['val_loss'], label='Validation Loss', color='red', linewidth=6.5)
+ax2.set_ylabel('Loss Value', fontsize=50, fontweight='bold')
+ax2.set_xlabel('Epoch', fontsize=50, fontweight='bold')
 ax2.set_title('Loss', fontsize=70, fontweight='bold')
-plt.setp(ax2.get_xticklabels(), fontsize=28, fontweight="bold", horizontalalignment="left")
-plt.setp(ax2.get_yticklabels(), fontsize=28, fontweight="bold", horizontalalignment="right")
+# ax2.set_yscale('log')
+plt.setp(ax2.get_xticklabels(), fontsize=38, fontweight="bold", horizontalalignment="left")
+plt.setp(ax2.get_yticklabels(), fontsize=38, fontweight="bold", horizontalalignment="right")
 l2 = ax2.legend(loc='best', prop={'size': 35})
-plt.savefig('{}'.format(k), format='png', dpi=500)
+plt.savefig('unet_test_distributed_2.png', format='png', dpi=500)
 plt.show() 
 
-
+print("Time Taken for Model Training: ", datetime.datetime.now() - begin_time)
