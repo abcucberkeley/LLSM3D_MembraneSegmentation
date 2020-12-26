@@ -1,4 +1,4 @@
-# LLSM 3D Membrane Segmentation
+# AO-LLSM 3D Membrane Detection and Segmentation
 
 ## Abstract
 
