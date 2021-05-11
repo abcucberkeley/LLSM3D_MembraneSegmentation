@@ -28,7 +28,7 @@ This code can be modified as needed for user-specific needs. Most users will onl
 
 ## Project Results
 
-Please refer to the this <a href="https://github.com/abcucberkeley/LLSM3D_MembraneSegmentation/blob/master/poster.pdf" download>project poster</a> for more information regarding our experimentation methods and results. If you have any inquiries regarding our project or code, feel free to contact Zeeshan Patel at zeeshanp (at) berkeley.edu. 
+Please refer to the this <a href="https://github.com/abcucberkeley/LLSM3D_MembraneSegmentation/blob/master/poster.pdf" download>project poster</a> for more information regarding our experimentation methods and results. If you have any inquiries regarding our project or code, feel free to contact Zeeshan Patel (zeeshanp [at] berkeley.edu.) 
   
 
 ## References 
