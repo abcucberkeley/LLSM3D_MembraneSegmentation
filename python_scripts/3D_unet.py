@@ -1,3 +1,10 @@
+"""
+LLSM 3D Membrane Segmentation using 3D U-Net
+Author: Zeeshan Patel
+
+Instructions: Before running this script, please configure your training image filepaths (lines 53 and 55) to match the example format.  
+
+"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 import json
 import os
@@ -28,113 +35,40 @@ IMG_WIDTH = 112
 IMG_HEIGHT = 112
 IMG_DEPTH = 32
 IMG_CHANNELS = 1
-
+NUM_IMGS = 2508
+TEST_SIZE = 0.2
+BATCH_SIZE = 8
+NUM_EPOCHS = 250
+model_save_location = input("Enter the file path for the model h5 file: ") # Ex: /my/machine/.../model.h5
 
 #####################################################################################################################
 #####################################################################################################################
 
-# Data Augmentation Functions
-
-def crop_img_mask(img, mask, chunkh, chunkw, chunkl, imgh, imgw, imgl):
-        start_h = random.randint(0, imgh-chunkh)
-        start_w = random.randint(0, imgw-chunkw)
-        start_l = random.randint(0, imgl-chunkl)
-        
-        cropped_img = img[start_h:start_h+chunkh, start_w:start_w+chunkw, start_l:start_l+chunkl]
-        cropped_mask = mask[start_h:start_h+chunkh, start_w:start_w+chunkw, start_l:start_l+chunkl]
-        
-        if (cropped_mask.shape == (chunkh, chunkw, chunkl)) & (cropped_img.shape == (chunkh, chunkw, chunkl)):                                       
-            return cropped_img , cropped_mask
-        
-def rotation(cropped_img, cropped_mask):
-    cropped_img = tfa.image.rotate(cropped_img, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
-    cropped_mask = tfa.image.rotate(cropped_mask, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
-    return cropped_img, cropped_mask
-
-def flip_img(cropped_img, cropped_mask): 
-    cropped_img = tf.image.flip_left_right(cropped_img)
-    cropped_mask = tf.image.flip_left_right(cropped_mask)
-    cropped_img = tf.image.flip_up_down(cropped_img)
-    cropped_mask = tf.image.flip_up_down(cropped_mask) 
-    return cropped_img, cropped_mask
-
-def random_augmentation(img, mask, chunkh, chunkw, chunkl, imgh, imgw, imgl):
-    cropped_img, cropped_mask = crop_img_mask(img, mask, chunkh, chunkw, chunkl, imgh, imgw, imgl)
-
-    random_number = random.randint(1,4) 
-    if (cropped_mask.shape == (chunkh, chunkw, chunkl)) & (cropped_img.shape == (chunkh, chunkw, chunkl)):
-        if random_number == 1:
-            cropped_mask = np.array(cropped_mask, dtype=np.bool)
-            return cropped_img, cropped_mask
-        elif random_number == 2:
-            cropped_img = tfa.image.rotate(cropped_img, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
-            cropped_mask = tfa.image.rotate(cropped_mask, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
-            cropped_img = np.array(cropped_img)
-            cropped_mask = np.array(cropped_mask, np.bool)
-            return cropped_img, cropped_mask
-        elif random_number == 3:
-            cropped_img = tf.image.flip_left_right(cropped_img)
-            cropped_mask = tf.image.flip_left_right(cropped_mask)
-            cropped_img = tf.image.flip_up_down(cropped_img)
-            cropped_mask = tf.image.flip_up_down(cropped_mask) 
-            cropped_img = np.array(cropped_img)
-            cropped_mask = np.array(cropped_mask, np.bool)
-            return cropped_img, cropped_mask
-        else:
-            cropped_img = tfa.image.rotate(cropped_img, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
-            cropped_mask = tfa.image.rotate(cropped_mask, tf.constant((2*np.pi)/2), interpolation="BILINEAR")
-            cropped_img = tf.image.flip_left_right(cropped_img)
-            cropped_mask = tf.image.flip_left_right(cropped_mask)
-            cropped_img = tf.image.flip_up_down(cropped_img)
-            cropped_mask = tf.image.flip_up_down(cropped_mask) 
-            cropped_img = np.array(cropped_img)
-            cropped_mask = np.array(cropped_mask, np.bool)
-            return cropped_img, cropped_mask
-        
-
-# Data Loading
-
-num_images = int(input("Enter the number of input images: "))
-
-imgs = []
-masks = []
-
-for i in range(num_images):
-    img_path = input("Enter the path for bioimage {}: ".format(i))
-    img = tifffile.imread(img_path)
-    img = img[1::2, 1::2, 1::2]
-    mask_path = input("Enter the path for mask {}: ".format(i))
-    mask = tifffile.imread(mask_path)
-    mask.dtype = np.uint8
-    mask = mask[1::2, 1::2, 1::2]
-    imgs.append(img)
-    masks.append(mask)
-
+# Loading Training Data
 x = []
 y = []
 count = 0
-while count < 700:
-    for i in range(len(imgs)):
-        cropped_img, cropped_mask = random_augmentation(img[i], mask[i], 32, 112, 112, img[i].shape[0], img[i].shape[1], img[i].shape[2])
-        x.append(cropped_img)
-        y.append(cropped_mask)
+while count < NUM_IMGS:
+    
+    img = tifffile.imread('/some/path/cropped_imgs/img{}.tif'.format(count)) # Make sure to configure your own path before running the script
+    x.append(img)
+    mask = tifffile.imread('/some/path/cropped_masks/mask{}.tif'.format(count)) # Make sure to configure your own path before running the script
+    y.append(mask)
+    
     count+=1
 
-x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=0.2)
+x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=TEST_SIZE)
 x_train = np.array(x_train, dtype=np.uint8)
 y_train = np.array(y_train, dtype=np.bool)
 x_test = np.array(x_test, dtype=np.uint8)
 y_test = np.array(y_test, dtype=np.bool)
 
-print('Data Loaded successfully!') 
-
+print('Data Loaded successfully!')
 
 #####################################################################################################################
 #####################################################################################################################
 
 # 3D U-Net Model Functions
-
-model_save_location = input("Enter the file path for the model h5 file: ") # Ex: /my/machine/.../model.h5
 
 def dice_coef(y_true, y_pred, smooth=1e-6):
     y_true = tf.cast(y_true, tf.float32)
@@ -159,6 +93,8 @@ def bce_dice_loss(y_true, y_pred):
     y_pred = tf.cast(y_pred, tf.float32)
     return tf.keras.losses.binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
 
+#####################################################################################################################
+#####################################################################################################################
 
 # Distributed 3D U-Net Architecture 
 
@@ -217,17 +153,17 @@ with strategy.scope():
 
 model.summary()
 
-# You can uncomment the below lines if you are interested in using TensorBoard for more advanced analytics on your model. 
+# You can uncomment the below lines if you are interested in using TensorBoard for more advanced analytics on your model.
+# If you want to use a callback, make sure to add the callback parameter in model.fit()
 
 # log_dir = 'logs/fit'
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
 train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test))
-batch_size = 8 # This size was optimal for a trainign with over 6,600 images on three NVIDIA Titan V GPUs. You can change this based on your machine's capabilities.
-train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
-test_dataset = test_dataset.batch(batch_size, drop_remainder=True)
-u_net = model.fit(train_dataset, epochs=400, verbose=1, validation_data=test_dataset)
+train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=True)
+test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=True)
+u_net = model.fit(train_dataset, epochs=NUM_EPOCHS, verbose=1, validation_data=test_dataset)
 
 model.save(model_save_location)
 
@@ -235,6 +171,7 @@ model.save(model_save_location)
 #####################################################################################################################
 
 # Training/Validation Accuracy + Loss Plot
+
 plt.style.use('seaborn-darkgrid')
 f, (ax1, ax2) = plt.subplots(1, 2, figsize=(50,40))
 t = f.suptitle('3D U-Net Performance', fontsize=90, fontweight='bold')
@@ -261,7 +198,8 @@ ax2.set_title('Loss', fontsize=70, fontweight='bold')
 plt.setp(ax2.get_xticklabels(), fontsize=38, fontweight="bold", horizontalalignment="left")
 plt.setp(ax2.get_yticklabels(), fontsize=38, fontweight="bold", horizontalalignment="right")
 l2 = ax2.legend(loc='best', prop={'size': 35})
-plt.savefig('unet_test_distributed_2.png', format='png', dpi=500)
+plt.savefig('unet_test_distributed.png', format='png', dpi=500)
 plt.show() 
 
 print("Time Taken for Model Training: ", datetime.datetime.now() - begin_time)
+
