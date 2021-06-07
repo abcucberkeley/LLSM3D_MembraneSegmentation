@@ -1,3 +1,13 @@
+"""
+
+LLSM 3D Membrane Segmentation using 3D U-Net
+Author: Zeeshan Patel
+Instructions: Complete all input fields when running this script. You may run this script in multiple 
+              compute nodes if you would like to binarize several masks simultaneously. This process
+              can require several hours depending on the size of your raw masks. 
+
+"""
+
 import tifffile 
 import numpy as np
 import skimage 
