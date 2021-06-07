@@ -1,43 +1,65 @@
+"""
+
+LLSM 3D Membrane Segmentation using 3D U-Net
+Author: Zeeshan Patel
+Instructions: Complete all input fields when you run the script. You may run the script in multiple 
+              compute nodes if you have several images to create labels for. This script takes 
+              approximately 5 minutes to generate a label for one bioimage, on average.
+
+"""
+
 from __future__ import print_function
 import numpy as np
-import matplotlib.pyplot as plt
 import tensorflow as tf
-from ipywidgets import interact, interactive, fixed, interact_manual
-import ipywidgets as widgets
 import tifffile
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from tqdm import tqdm
-import seaborn as sns
 import math
+from tensorflow.keras import backend as K
 
+
+# U-Net Model Loss Function
+
+def dice_coef(y_true, y_pred, smooth=1e-6):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = K.sum(y_true_f * y_pred_f)
+    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+def dice_loss(y_true, y_pred):
+    smooth = 1.
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = y_true_f * y_pred_f
+    score = (2. * K.sum(intersection) + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+    return 1. - score
+
+def bce_dice_loss(y_true, y_pred):
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
+    return tf.keras.losses.binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
 
 # Loading Model
 i = input('Please input the file path to your 3D U-Net model \n')
-model = tf.keras.models.load_model('{}'.format(i))
+model = tf.keras.models.load_model('{}'.format(i), custom_objects={'bce_dice_loss': bce_dice_loss})
 
 # Inputting Raw (Scaled) Image
 
 k = input('Please input the file path to your raw (scaled) image \n')
 img = tifffile.imread('{}'.format(k))
 
-def pd_preprocessing(pd):
-    label = pd
-    label = np.squeeze(label)
-    label = np.transpose(label, (3, 0, 1, 2))
-    label = label[1]
-    return label
-
 def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
-
     if OL%2 !=0:
         print('ERROR: Please enter an even OL value for the program to run.')
     else:
-        a = imgh/chunkh
-        a = math.ceil(a)
-        b = imgl/chunkl
-        b = math.ceil(b)
-        c = imgw/chunkw
-        c = math.ceil(c)
+        a = imgh/(chunkh-OL)
+        a = int(math.ceil(a)) + 1
+        b = imgl/(chunkl-OL)
+        b = int(math.ceil(b)) + 1
+        c = imgw/(chunkw-OL)
+        c = int(math.ceil(c))
         i = 0
         xmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
         xmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
@@ -53,20 +75,23 @@ def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
                     xmin[num_chunks] = (((x)*(chunkw-OL)))
                     if x < chunkw: 
                         xmax[num_chunks] = (chunkw*(x+1)-(OL*(x)))
-                    else:
-                        xmax[num_chunks] = imgw
+                        if xmax[num_chunks] > imgw:
+                            xmin[num_chunks] = imgw-chunkw
+                            xmax[num_chunks] = imgw
 
                     ymin[num_chunks] = (((y)*(chunkl-OL)))
                     if y < chunkl: 
                         ymax[num_chunks] = (chunkl*(y+1)-(OL*(y)))
-                    else:
-                        ymax[num_chunks] = imgl
+                        if ymax[num_chunks] > imgl:
+                            ymin[num_chunks] = imgl-chunkl
+                            ymax[num_chunks] = imgl
 
                     zmin[num_chunks] = (((z)*(chunkh-OL)))
                     if z < chunkh: 
                         zmax[num_chunks] = (chunkh*(z+1)-(OL*(z)))
-                    else:
-                        zmax[num_chunks] = imgh
+                        if zmax[num_chunks] > imgh:
+                            zmin[num_chunks] = imgh-chunkh
+                            zmax[num_chunks] = imgh
                     num_chunks+=1
 
         halfOL = int(OL/2)
@@ -77,7 +102,7 @@ def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
             print('Zmin:', zmin[i], "Zmax:", zmax[i], 'Ymin:', ymin[i], "Ymax:", ymax[i],'Xmin:', xmin[i], "Xmax:", xmax[i])
             cropped_img = img[zmin[i]:zmax[i], ymin[i]:ymax[i], xmin[i]:xmax[i]] 
             print(cropped_img.shape)
-            if (cropped_img.shape ==(chunkh, chunkl, chunkw)):
+            if (cropped_img.shape == (chunkh, chunkl, chunkw)):
                 pd = model.predict(cropped_img.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
                 #Postprocess pd
                 cropped_pred = pd_preprocessing(pd) 
@@ -114,7 +139,7 @@ def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
             i+=1
                 
         return np.float32(full_pred)
-
+    
 imgh = int(input('Please input the full image array z dimension size \n'))
 imgl = int(input('Please input the full image array y dimension size \n'))
 imgw = int(input('Please input the full image array x dimension size \n'))
@@ -125,5 +150,3 @@ OL = int(input('Please input your preffered number of overlap pixels \n'))
 save_path = input('Please enter your desired file path for the final full prediction \n')
 full_pred = full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkw, chunkl, OL)
 tifffile.imwrite('{}'.format(save_path), full_pred)
-
-
