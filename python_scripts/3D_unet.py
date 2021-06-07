@@ -1,8 +1,8 @@
 """
+
 LLSM 3D Membrane Segmentation using 3D U-Net
 Author: Zeeshan Patel
-
-Instructions: Before running this script, please configure your training image filepaths (lines 53 and 55) to match the example format.  
+Instructions: Before running this script, please configure your training image filepaths (lines 53 and 55) to match the example format.
 
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
