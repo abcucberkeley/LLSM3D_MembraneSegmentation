@@ -1,3 +1,12 @@
+"""
+
+LLSM 3D Membrane Segmentation using 3D U-Net
+Author: Zeeshan Patel
+Instructions: Complete all input fields when running this script. You may run this script in multiple 
+              compute nodes if you would like to normalize several images simultaneously. This process
+              requires about 7-15 minutes depending on the raw image size.
+"""
+
 import numpy as np
 import tifffile
 from tqdm import tqdm
