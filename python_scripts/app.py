@@ -1,3 +1,11 @@
+"""
+
+LLSM 3D Membrane Segmentation using 3D U-Net
+Author: Zeeshan Patel
+Instructions: This app was created using Streamlit. Follow the instructions on the official documentation to learn how to deploy/use this app.
+
+"""
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 import streamlit as st
 import numpy as np
