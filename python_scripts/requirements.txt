@@ -1,0 +1,35 @@
+base58==2.0.1
+flatbuffers==1.12
+future==0.18.2
+h5py==2.10.0
+imagecodecs==2020.5.30
+imageio==2.8.0
+itk==5.1.0.post3
+itk-core==5.1.0.post3
+itk-filtering==5.1.0.post3
+itk-io==5.1.0.post3
+itk-numerics==5.1.0.post3
+itk-registration==5.1.0.post3
+itk-segmentation==5.1.0.post3
+Keras==2.3.1
+Keras-Preprocessing==1.1.2
+matplotlib==3.2.1
+numpy==1.19.4
+opencv-python==4.2.0.34
+scikit-image==0.17.2
+scikit-learn @ file:///opt/concourse/worker/volumes/live/5aebc36a-9e26-4cf4-48a2-103c2e39086d/volume/scikit-learn_1598376928019/work
+scipy @ file:///opt/concourse/worker/volumes/live/01799c8f-3d00-4c6b-5be2-f58e344bd56a/volume/scipy_1597719773996/work
+seaborn==0.11.0
+sklearn==0.0
+statsmodels==0.12.2
+streamlit==0.80.0
+tensorboard==2.4.0
+tensorboard-plugin-wit==1.7.0
+tensorflow==2.4.0
+tensorflow-addons==0.12.1
+tensorflow-estimator==2.4.0
+tifffile==2020.6.3
+torch==1.5.0
+tqdm==4.46.0
+
+
