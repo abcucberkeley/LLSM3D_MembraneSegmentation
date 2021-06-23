@@ -14,7 +14,6 @@ import tifffile
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import random
-import scipy 
 import tensorflow_addons as tfa
 import tensorflow as tf
 from tifffile import imwrite
@@ -30,6 +29,14 @@ from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from tensorflow.keras import backend as K
 import datetime
+from skimage.morphology import disk, local_minima
+from skimage.filters import rank
+from skimage.feature import peak_local_max
+from skimage import segmentation
+from skimage import measure
+import scipy.ndimage as ndi
+import scipy
+import time 
 
 
 
@@ -746,5 +753,45 @@ elif add_selectbox == "Segmentation":
 
     st.title("Segmentation")
     st.write(' ')
-    st.markdown("*Page under development*")
-    pass
+    st.write("On this page, you can utilize our watershed segmentation feature to generate 3D cell segmentations for your inferences. This process can take 20-30 minutes for large images.")
+    
+    def watershed_seg(inference_path, threshold, save_path, watershed_line=False):
+        start_time = time.time()
+        st.write("Starting segmentation at {}".format(start_time))
+        inf = tifffile.imread(inference_path)
+        st.write("Inference Read\nInference Shape: {}".format(inf.shape))
+        mask = inf < threshold
+        st.write("Created binary mask")
+        distance = ndi.distance_transform_edt(mask)
+        local_maxi = peak_local_max(distance, labels=mask, footprint=np.ones((3, 3, 3)), indices=False)
+        markers = ndi.label(local_maxi)[0]
+        watershed_test = segmentation.watershed(inf, mask=mask, markers=markers, watershed_line=watershed_line)
+        st.write("Watershed complete")
+        tifffile.imwrite(save_path, watershed_test)
+        end_time = time.time()
+        st.write("Segmented image written")
+        st.write("Segmentation Time Taken: {}".format(end_time-start_time))
+
+    st.write(' ')
+    st.write(' ')
+    inf_path = st.text_input("Enter the file path to your inference .tif file.")
+    st.write(' ')
+    thresh = st.slider("Choose a threshold value to binarize your inference. (We suggest a high threshold value i.e. 0.75+).", min_value=0.00, max_value=1.00, step=0.01)
+    st.write(' ')
+    save_path = st.text_input("Enter the save path to your segmentation .tif file.")
+    st.write(' ')
+    st.write("A watershed line is a one-pixel wide line that separates the regions obtained by the watershed segmentation algorithm. The line has the label 0.")
+    st.write(' ')
+    watershedline = st.selectbox("Would you like to include a watershed line in your segmentation?", ["Yes", "No"])
+    st.write(' ')
+    if watershedline=="Yes":
+        watershedLine = True
+    else:
+        watershedLine = False
+    
+    run = st.button("Run Watershed Segmentation")
+    if run == True:
+        with st.spinner("Segmentation Running"):
+            watershed_seg(inf_path, thresh, save_path, watershed_line=watershedLine)
+        st.balloons()
+        st.markdown('#### Segmentation Complete!')
