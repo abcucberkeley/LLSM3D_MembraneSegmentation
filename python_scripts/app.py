@@ -68,9 +68,9 @@ if add_selectbox == "Home":
 
     st.write("(1) Özgün Çiçek et al. (2016). 3D U-Net: Learning Dense Volumetric Segmentation from Sparse Annotation. arXiv:1606.06650. (2) Gao et al. (2019). Cortical column and whole-brain imaging with molecular contrast and nanoscale resolution. Science Vol. 363, Issue 6424. (3) Liu et al. (2018). Observing the cell in its native state: Imaging subcellular dynamics in multicellular organisms. Science Vol. 360, Issue 6386. (4) Aguet et al. (2016) Membrane dynamics of dividing cells imaged by lattice light-sheet microscopy. Molecular Biology of the Cell 2016 27:22, 3418-3435.")
 
-    st.title("Citation")
+#     st.title("Citation")
 
-    st.write("*fill text here*")
+#     st.write("*fill text here*")
 
 
 if add_selectbox == "Data Preparation":
