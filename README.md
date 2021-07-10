@@ -35,6 +35,10 @@ conda install --file requirements.txt
 streamlit run app.py
 ```
 
+## Additional Documentation
+
+To learn more about the specific details of each script and all of the parameters, please refer to our <a href="https://docs.google.com/document/d/1pYugyeuD_Ypg7Xc-aFosiLLn-595bRr3oNI_ojKiK1A/edit?usp=sharing">docs</a>.
+
 ## Project Results
 
 Please refer to the this <a href="https://github.com/abcucberkeley/LLSM3D_MembraneSegmentation/blob/master/poster.pdf" download>project poster</a> for more information regarding our experimentation methods and results. If you have any inquiries regarding our project or code, feel free to contact Zeeshan Patel (zeeshanp [at] berkeley.edu.) 
