@@ -52,7 +52,7 @@ if add_selectbox == "Home":
 
     st.title("Introduction")
 
-    st.write("Adaptive Optical Lattice light-sheet microscopy (AO-LLSM) is a 3D live-cell imaging method that reduces the damage to the physiological state of the biological specimen due to phototoxicity while also maintaining high-resolution image quality by avoiding issues with problems with aberrations (Gao et al., 2019; Liu et al., 2018). AO-LLSM delivers images in high spatiotemporal resolution which allows for detailed analysis of individual cells in complex, multicellular organisms. However, identifying cell boundaries in dense, multicellular organisms can be a daunting and tedious task. In order to understand cellular processes, it is vital to properly identify cell membranes and to label these individual cell membranes. Precise labeling will enable the isolation of any cell in images of dense, multicellular organisms and analyze its cellular dynamics, cell morphologies, and organelle processes. We outline a 3D cell membrane segmentation method using deep learning with 3D U-Net. We developed our own image normalization and ground truth label binarization algorithms for data preprocessing using core frameworks such as NumPy and scikit-image. To generate training and testing datasets, we created random augmentation algorithms that utilized noise functions and TensorFlow based image augmentation functions. To develop the 3D U-Net, we utilized Tensorflow-based Keras and used the original architecture (Özgün Çiçek et al., 2016). To use our tool on large, volumetric datasets, we developed a prediction script that can take in 3D cell membrane images of any size and produce a predicted label for the image. Our 3D U-Net was able to generate labels with the top accuracy of 96.55% in less than five hours. This process allows fast image processing and rapid neural network training, providing a both time and cost-efficient automated method for 3D cell membrane detection and segmentation.")
+    st.markdown("Adaptive Optical Lattice light-sheet microscopy (AO-LLSM) is a 3D live-cell imaging method that reduces damage to the physiological state of the biological specimen due to phototoxicity while also maintaining high-resolution image quality by avoiding issues with aberrations (Gao et al., 2019; Liu et al., 2018). AO-LLSM delivers images in high spatiotemporal resolution, which allows for detailed analysis of individual cells in complex, multicellular organisms. However, identifying cell boundaries in dense, multicellular organisms can be a tedious task. In order to understand cellular processes, it is vital to properly identify and segment individual cell membranes. Precise labeling will enable the isolation of any cell in images of dense, multicellular organisms, allowing researchers to analyze their cellular dynamics, cell morphologies, and organelle processes. We outline a 3D-live cell membrane segmentation method using deep learning with 3D U-Net. We developed our own image normalization and ground truth label binarization algorithms for data preprocessing using core frameworks such as NumPy and scikit-image. To generate training and testing datasets, we created random augmentation algorithms that utilized Gaussian noise functions and TensorFlow based image augmentation functions. To develop the 3D U-Net, we utilized the Tensorflow-based Keras API and the original neural network architecture (Özgün Çiçek et al., 2016). To use our tool on large, volumetric datasets, we developed a prediction script that can take in 3D cell membrane images of any size and produce a predicted label for the image. **Our 3D U-Net was able to generate segmentation labels in less than five minutes, with accuracies around 98.10%. The overall process allows for fast image processing and rapid neural network training, providing both a time and cost-efficient, automated method for 3D cell membrane detection and segmentation.**")
 
     st.title("Documentation")
 
@@ -435,7 +435,9 @@ elif add_selectbox == "3D U-Net Training":
             filepath = st.text_input("Enter a filepath to save your checkpoints. (Ex: /my/computer/model1)")
             monitor_selection = st.selectbox("Which metric would you like to monitor for the ModelCheckpoint?", ["val_accuracy", "val_loss", "accuracy", "loss"])
             callbacks.append(tf.keras.callbacks.ModelCheckpoint(filepath=filepath, monitor=monitor_selection, save_best_only=True))
-    if IMG_WIDTH and IMG_HEIGHT and IMG_DEPTH and cropped_num and epoch_selection:
+    test_size = st.slider("What proportion of your training data would you like to use for validation?", 0.01, 1.00)
+    button = st.button("Start Training")
+    if IMG_WIDTH and IMG_HEIGHT and IMG_DEPTH and cropped_num and epoch_selection and button==True:
         IMG_WIDTH = int(IMG_WIDTH)
         IMG_HEIGHT = int(IMG_HEIGHT)
         IMG_DEPTH = int(IMG_DEPTH)
@@ -453,7 +455,7 @@ elif add_selectbox == "3D U-Net Training":
                 mask = tifffile.imread(mask_path + 'mask{}.tif'.format(count))
                 y.append(mask)
                 count+=1
-        test_size = st.slider("What proportion of your training data would you like to use for validation?", 0.01, 1.00)
+                
         if test_size and x and y:
             x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=test_size)
             x_train = np.array(x_train, dtype=np.uint8)
@@ -548,6 +550,7 @@ elif add_selectbox == "3D U-Net Training":
             train_dataset = train_dataset.batch(batch_size, drop_remainder=True)
             test_dataset = test_dataset.batch(batch_size, drop_remainder=True)
             begin_time = datetime.datetime.now()
+            st.write("Model Training Started! Check your terminal to view the model training progress.")
             u_net = model.fit(train_dataset, epochs=epoch_selection, verbose=1, validation_data=test_dataset)
             model.save(model_save_path)
             st.write("Model Training Complete!")
@@ -609,7 +612,13 @@ elif add_selectbox == "Inference":
         y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.cast(y_pred, tf.float32)
         return tf.keras.losses.binary_crossentropy(y_true, y_pred) + dice_loss(y_true, y_pred)
-
+    def pd_preprocessing(pd): 
+        label = pd
+        label = np.squeeze(label)
+        #label = np.transpose(label, (3, 0, 1, 2)) # use this line only when your model used multiple channels in output layer
+        #label = label[1] # use this line only when your model used multiple channels in output layer
+        return label
+    
     model = None
     st.title("Inference")
     st.write(' ')
@@ -651,102 +660,105 @@ elif add_selectbox == "Inference":
         
             OL = st.slider('How many pixels would you like to use as an overlap? (Must be an even number greater than 0. Recommeneded 10 pixels.)', 2, 30, step=2)
             OL = int(OL)
-            def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
-                    if OL%2 !=0:
-                        print('ERROR: Please enter an even OL value for the program to run.')
-                    else:
-                        a = imgh/(chunkh-OL)
-                        a = int(math.ceil(a)) + 1
-                        b = imgl/(chunkl-OL)
-                        b = int(math.ceil(b)) + 1
-                        c = imgw/(chunkw-OL)
-                        c = int(math.ceil(c))
-                        i = 0
-                        xmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-                        xmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-                        ymin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-                        ymax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-                        zmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
-                        zmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+            
+            button_start = st.button("Start Inference")
+            if button_start==True:
+                def full_volume_prediction(img, imgh, imgl, imgw, chunkh, chunkl, chunkw, OL):
+                        if OL%2 !=0:
+                            print('ERROR: Please enter an even OL value for the program to run.')
+                        else:
+                            a = imgh/(chunkh-OL)
+                            a = int(math.ceil(a)) + 1
+                            b = imgl/(chunkl-OL)
+                            b = int(math.ceil(b)) + 1
+                            c = imgw/(chunkw-OL)
+                            c = int(math.ceil(c))
+                            i = 0
+                            xmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+                            xmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+                            ymin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+                            ymax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+                            zmin = np.zeros(shape=(a*b*c,), dtype=np.uint16)
+                            zmax = np.zeros(shape=(a*b*c,), dtype=np.uint16)
 
-                        num_chunks = 0
-                        for z in range(a): 
-                            for y in range(b):
-                                for x in range(c):
-                                    xmin[num_chunks] = (((x)*(chunkw-OL)))
-                                    if x < chunkw: 
-                                        xmax[num_chunks] = (chunkw*(x+1)-(OL*(x)))
-                                        if xmax[num_chunks] > imgw:
-                                            xmin[num_chunks] = imgw-chunkw
-                                            xmax[num_chunks] = imgw
+                            num_chunks = 0
+                            for z in range(a): 
+                                for y in range(b):
+                                    for x in range(c):
+                                        xmin[num_chunks] = (((x)*(chunkw-OL)))
+                                        if x < chunkw: 
+                                            xmax[num_chunks] = (chunkw*(x+1)-(OL*(x)))
+                                            if xmax[num_chunks] > imgw:
+                                                xmin[num_chunks] = imgw-chunkw
+                                                xmax[num_chunks] = imgw
 
-                                    ymin[num_chunks] = (((y)*(chunkl-OL)))
-                                    if y < chunkl: 
-                                        ymax[num_chunks] = (chunkl*(y+1)-(OL*(y)))
-                                        if ymax[num_chunks] > imgl:
-                                            ymin[num_chunks] = imgl-chunkl
-                                            ymax[num_chunks] = imgl
+                                        ymin[num_chunks] = (((y)*(chunkl-OL)))
+                                        if y < chunkl: 
+                                            ymax[num_chunks] = (chunkl*(y+1)-(OL*(y)))
+                                            if ymax[num_chunks] > imgl:
+                                                ymin[num_chunks] = imgl-chunkl
+                                                ymax[num_chunks] = imgl
 
-                                    zmin[num_chunks] = (((z)*(chunkh-OL)))
-                                    if z < chunkh: 
-                                        zmax[num_chunks] = (chunkh*(z+1)-(OL*(z)))
-                                        if zmax[num_chunks] > imgh:
-                                            zmin[num_chunks] = imgh-chunkh
-                                            zmax[num_chunks] = imgh
-                                    num_chunks+=1
+                                        zmin[num_chunks] = (((z)*(chunkh-OL)))
+                                        if z < chunkh: 
+                                            zmax[num_chunks] = (chunkh*(z+1)-(OL*(z)))
+                                            if zmax[num_chunks] > imgh:
+                                                zmin[num_chunks] = imgh-chunkh
+                                                zmax[num_chunks] = imgh
+                                        num_chunks+=1
 
-                        halfOL = int(OL/2)
-                        full_pred = np.zeros(shape=(imgh, imgl, imgw))
-                        print(full_pred.shape)
-                        while i < (num_chunks): 
-                            print(i)
-                            print('Zmin:', zmin[i], "Zmax:", zmax[i], 'Ymin:', ymin[i], "Ymax:", ymax[i],'Xmin:', xmin[i], "Xmax:", xmax[i])
-                            cropped_img = img[zmin[i]:zmax[i], ymin[i]:ymax[i], xmin[i]:xmax[i]] 
-                            print(cropped_img.shape)
-                            if (cropped_img.shape == (chunkh, chunkl, chunkw)):
-                                pd = model.predict(cropped_img.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
-                                #Postprocess pd
-                                cropped_pred = pd_preprocessing(pd) 
-                                full_pred[zmin[i]+halfOL:zmax[i]-halfOL, ymin[i]+halfOL:ymax[i]-halfOL, xmin[i]+halfOL:xmax[i]-halfOL] = cropped_pred[0+halfOL:chunkh-halfOL, 0+halfOL:chunkl-halfOL, 0+halfOL:chunkw-halfOL]
-                            else:
-                                print('This crop was too small.')
-                                new_array = np.zeros(shape=(chunkh,chunkl,chunkw))
-                                arr = np.zeros(shape=cropped_img.shape)
-                                xdiff = cropped_img.shape[2] 
-                                ydiff = cropped_img.shape[1] 
-                                zdiff = cropped_img.shape[0] 
-                                print('Zdiff', zdiff, "Ydiff", ydiff, 'Xdiff', xdiff)
-                                new_array[0:zdiff, 0:ydiff, 0:xdiff] = cropped_img
-                                pd = model.predict(new_array.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
-                                cropped_pred = pd_preprocessing(pd)
-                                arr = cropped_pred[0:zdiff, 0:ydiff, 0:xdiff]
-                                if zdiff>halfOL:
-                                    zidx = list(range(halfOL, zdiff-halfOL+1))
+                            halfOL = int(OL/2)
+                            full_pred = np.zeros(shape=(imgh, imgl, imgw))
+                            print(full_pred.shape)
+                            while i < (num_chunks): 
+                                print(i)
+                                print('Zmin:', zmin[i], "Zmax:", zmax[i], 'Ymin:', ymin[i], "Ymax:", ymax[i],'Xmin:', xmin[i], "Xmax:", xmax[i])
+                                cropped_img = img[zmin[i]:zmax[i], ymin[i]:ymax[i], xmin[i]:xmax[i]] 
+                                print(cropped_img.shape)
+                                if (cropped_img.shape == (chunkh, chunkl, chunkw)):
+                                    pd = model.predict(cropped_img.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
+                                    #Postprocess pd
+                                    cropped_pred = pd_preprocessing(pd) 
+                                    full_pred[zmin[i]+halfOL:zmax[i]-halfOL, ymin[i]+halfOL:ymax[i]-halfOL, xmin[i]+halfOL:xmax[i]-halfOL] = cropped_pred[0+halfOL:chunkh-halfOL, 0+halfOL:chunkl-halfOL, 0+halfOL:chunkw-halfOL]
                                 else:
-                                    zidx = list(range(0, zdiff+1))
-                                
-                                if ydiff>halfOL:
-                                    yidx = list(range(halfOL, ydiff-halfOL+1))
-                                else:
-                                    yidx = list(range(0, ydiff+1))         
-                                
-                                if xdiff>halfOL:
-                                    xidx = list(range(halfOL, xdiff-halfOL+1))
-                                else:
-                                    xidx = list(range(0, xdiff+1))
-                                
-                                full_pred[zmin[i]:zmin[i]+len(zidx)-1, ymin[i]:ymin[i]+len(yidx)-1, xmin[i]:xmin[i]+len(xidx)-1] = arr[zidx[0]:zidx[len(zidx)-1], yidx[0]:yidx[len(yidx)-1], xidx[0]:xidx[len(xidx)-1]]
-                                
-                            i+=1
-                                
-                        return np.float32(full_pred)
+                                    print('This crop was too small.')
+                                    new_array = np.zeros(shape=(chunkh,chunkl,chunkw))
+                                    arr = np.zeros(shape=cropped_img.shape)
+                                    xdiff = cropped_img.shape[2] 
+                                    ydiff = cropped_img.shape[1] 
+                                    zdiff = cropped_img.shape[0] 
+                                    print('Zdiff', zdiff, "Ydiff", ydiff, 'Xdiff', xdiff)
+                                    new_array[0:zdiff, 0:ydiff, 0:xdiff] = cropped_img
+                                    pd = model.predict(new_array.reshape([1, chunkh, chunkl, chunkw, 1]), verbose=1)
+                                    cropped_pred = pd_preprocessing(pd)
+                                    arr = cropped_pred[0:zdiff, 0:ydiff, 0:xdiff]
+                                    if zdiff>halfOL:
+                                        zidx = list(range(halfOL, zdiff-halfOL+1))
+                                    else:
+                                        zidx = list(range(0, zdiff+1))
 
-            pred = full_volume_prediction(img, img.shape[0], img.shape[1], img.shape[2], CHUNK_HEIGHT, CHUNK_LENGTH, CHUNK_WIDTH, OL)
-            tifffile.imsave(save_path, pred)
+                                    if ydiff>halfOL:
+                                        yidx = list(range(halfOL, ydiff-halfOL+1))
+                                    else:
+                                        yidx = list(range(0, ydiff+1))         
 
-            st.write(' ')
-            st.markdown('#### Prediction Complete!')
-            st.balloons()
+                                    if xdiff>halfOL:
+                                        xidx = list(range(halfOL, xdiff-halfOL+1))
+                                    else:
+                                        xidx = list(range(0, xdiff+1))
+
+                                    full_pred[zmin[i]:zmin[i]+len(zidx)-1, ymin[i]:ymin[i]+len(yidx)-1, xmin[i]:xmin[i]+len(xidx)-1] = arr[zidx[0]:zidx[len(zidx)-1], yidx[0]:yidx[len(yidx)-1], xidx[0]:xidx[len(xidx)-1]]
+
+                                i+=1
+
+                            return np.float32(full_pred)
+
+                pred = full_volume_prediction(img, img.shape[0], img.shape[1], img.shape[2], CHUNK_HEIGHT, CHUNK_LENGTH, CHUNK_WIDTH, OL)
+                tifffile.imsave(save_path, pred)
+
+                st.write(' ')
+                st.markdown('#### Prediction Complete!')
+                st.balloons()
 
 
 elif add_selectbox == "Segmentation":
