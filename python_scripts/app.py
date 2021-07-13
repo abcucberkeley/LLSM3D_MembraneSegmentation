@@ -754,6 +754,9 @@ elif add_selectbox == "Inference":
                             return np.float32(full_pred)
 
                 pred = full_volume_prediction(img, img.shape[0], img.shape[1], img.shape[2], CHUNK_HEIGHT, CHUNK_LENGTH, CHUNK_WIDTH, OL)
+                st.markdown("#### Prediction Started!")
+                st.write(" ")
+                st.write("Check your terminal to view prediction progress.")
                 tifffile.imsave(save_path, pred)
 
                 st.write(' ')
