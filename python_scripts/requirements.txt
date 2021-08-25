@@ -25,7 +25,7 @@ statsmodels==0.12.2
 streamlit==0.80.0
 tensorboard==2.4.0
 tensorboard-plugin-wit==1.7.0
-tensorflow==2.4.0
+tensorflow==2.5.1
 tensorflow-addons==0.12.1
 tensorflow-estimator==2.4.0
 tifffile==2020.6.3
