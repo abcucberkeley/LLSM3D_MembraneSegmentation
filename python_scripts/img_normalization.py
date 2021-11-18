@@ -61,11 +61,7 @@ def scaleContrast(raw_img, rangeIn=(0,800), rangeOut=(0,255)):
     else: 
        out = (raw_img-rangeIn[0])/np.diff(rangeIn) * np.diff(rangeOut) + rangeOut[0]
     
-    for i in tqdm(range(len(out))):
-        for j in range(len(out[i])):
-            for k in range(len(out[i][j])):
-                if out[i][j][k] > rangeOut[1]:
-                    out[i][j][k] = rangeOut[1]
+    out[out > rangeOut[1] = rangeOut[1]
     return np.uint8(out)
 
 # Normalizing Raw Image
