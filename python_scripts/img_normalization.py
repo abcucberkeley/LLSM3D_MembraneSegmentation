@@ -61,7 +61,7 @@ def scaleContrast(raw_img, rangeIn=(0,800), rangeOut=(0,255)):
     else: 
        out = (raw_img-rangeIn[0])/np.diff(rangeIn) * np.diff(rangeOut) + rangeOut[0]
     
-    out[out > rangeOut[1] = rangeOut[1]
+    out[out > rangeOut[1]] = rangeOut[1]
     return np.uint8(out)
 
 # Normalizing Raw Image
