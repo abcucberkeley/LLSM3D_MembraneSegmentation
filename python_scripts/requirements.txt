@@ -14,7 +14,7 @@ itk-segmentation==5.1.0.post3
 Keras==2.3.1
 Keras-Preprocessing==1.1.2
 matplotlib==3.2.1
-numpy==1.19.4
+numpy==1.22.0
 opencv-python==4.2.0.34
 scikit-image==0.17.2
 scikit-learn==0.24.2
